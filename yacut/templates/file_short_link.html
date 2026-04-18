@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<main>
+	<section class="container my-5 px-4">
+		<h1 class="text-center"><span style="color:red">Ya</span>Cut</h1>
+		<p class="text-center my-4">
+			Создайте короткую ссылку автоматически или предложите свой вариант
+		</p>
+
+		<div class="container">
+			<div class="row my-3">
+				<div class="col-sm">
+				</div>
+				<div class="col-sm">
+					<form method="POST" novalidate enctype="multipart/form-data">
+						{{ form.csrf_token }}
+						<div>
+							<div>
+								{{ form.files(class="form-control form-control-lg py-2 mb-3", placeholder=form.files.label.text) }}
+								{% if form.files.errors %}
+									<p>
+										<span style="color:red">
+											{% for error in form.files.errors %}
+												{{ error }}
+											{% endfor %}
+										</span>
+									</p>
+								{% endif %}
+							</div>
+
+							{{ form.submit(class="btn btn-primary") }}
+						</div>
+					</form>
+					<p class="py-3 mb-3">
+						{% with messages = get_flashed_messages() %}
+							{% if messages %}
+								{% for message in messages %}
+									{{ message }}
+								{% endfor %}
+							{% endif %}
+						{% endwith %}
+					</p>
+				</div>
+				<div class="col-sm">
+				</div>
+			</div>
+		</div>
+
+		{% if file_links %}
+		<ul class="list-unstyled">
+			{% for file_link in file_links %}
+			<li class="d-flex justify-content-between align-items-center py-1 border-bottom">
+				<span class="text-muted">{{ file_link.name }}</span>
+				<a href="{{ file_link.link }}">{{ file_link.link }}</a>
+			</li>
+			{% endfor %}
+		</ul>
+		{% endif %}
+
+	</section>
+</main>
+{% endblock content %}
