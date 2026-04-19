@@ -9,8 +9,6 @@ from . import app
 AUTH_HEADERS = {
     'Authorization': f'OAuth {app.config["DISK_TOKEN"]}'
 }
-API_HOST = 'https://cloud-api.yandex.net/'
-API_VERSION = 'v1'
 
 UPLOAD_LINK = (
     f'{app.config["YADISK_API_HOST"]}'
@@ -24,13 +22,10 @@ DOWNLOAD_LINK_URL = (
 
 
 async def async_upload_files_to_yadisk(files):
-    tasks = []
     async with aiohttp.ClientSession() as session:
-        tasks = [
-            asyncio.ensure_future(upload_file_and_get_url(session, file))
-            for file in files
-        ]
-        return await asyncio.gather(*tasks)
+        return await asyncio.gather(
+            *(upload_file_and_get_url(session, file) for file in files)
+        )
 
 
 async def upload_file_and_get_url(session, file):
@@ -42,8 +37,7 @@ async def upload_file_and_get_url(session, file):
             'overwrite': 'True',
         }
     ) as response:
-        data = await response.json()
-        upload_url = data['href']
+        upload_url = (await response.json())['href']
 
     async with session.put(
         upload_url,
@@ -58,6 +52,4 @@ async def upload_file_and_get_url(session, file):
         headers=AUTH_HEADERS,
         params={'path': location}
     ) as response:
-        data = await response.json()
-
-    return data['href']
+        return (await response.json())['href']

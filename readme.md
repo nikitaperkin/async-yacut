@@ -5,8 +5,7 @@ YaCut — это сервис укорачивания ссылок, реали�
 
 ## Автор
 
-Никита Перкин
-GitHub: https://github.com/nikitaperkin
+**Никита Перкин** — [GitHub](https://github.com/nikitaperkin) | [Telegram](https://t.me/username_uu)
 
 ## Технологии
 
@@ -52,7 +51,7 @@ GitHub: https://github.com/nikitaperkin
 Клонируйте репозиторий и перейдите в папку проекта:
 
 ```bash
-git clone https://github.com/nikitaperkin/yacut.git
+git clone git@github.com:nikitaperkin/async-yacut.git
 cd yacut
 ```
 
@@ -107,5 +106,8 @@ flask run
 
 После запуска сервера приложение будет доступно по адресам:
 
-- `http://127.0.0.1:5000/` — главная страница;
-- `http://127.0.0.1:5000/files` — загрузка файлов;
+- [Главная страница](http://127.0.0.1:5000/) — форма для создания коротких ссылок;
+- [Загрузка файлов](http://127.0.0.1:5000/files) — загрузка файлов на Яндекс Диск.
+
+Документация API описана в файле [`openapi.yml`](openapi.yml).
+Для удобного просмотра используйте [Swagger Editor](https://editor.swagger.io/).

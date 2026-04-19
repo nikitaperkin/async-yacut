@@ -1,14 +1,18 @@
 from datetime import datetime
-import random
+from random import choices
 from string import ascii_letters, digits
 
 from flask import url_for
 
 from .constants import (
-    MAX_LEN_ORIGINAL, MAX_LEN_SHORT, CUSTOM_ID_PATTERN,
-    MAX_GENERATE_ATTEMPTS, OCCUPIED_ID, REDIRECT_VIEW
+    MAX_GENERATE_ATTEMPTS, MAX_LEN_AUTO, MAX_LEN_ORIGINAL,
+    MAX_LEN_SHORT, OCCUPIED_SHORT, REDIRECT_VIEW, SHORT_PATTERN
 )
-from yacut import app, db
+from yacut import db
+
+INVALID_SHORT = 'Указано недопустимое имя для короткой ссылки'
+SHORT_TAKEN = 'Предложенный вариант короткой ссылки уже существует.'
+SHORT_GENERATION_ERROR = 'Не удалось сгенерировать уникальную короткую ссылку.'
 
 
 class URLMap(db.Model):
@@ -18,38 +22,40 @@ class URLMap(db.Model):
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
 
     @staticmethod
-    def get(short_id):
-        return URLMap.query.filter_by(short=short_id).first()
+    def get(short):
+        return URLMap.query.filter_by(short=short).first()
 
     @staticmethod
-    def is_invalid_custom_id(custom_id):
-        return (custom_id == OCCUPIED_ID
-                or not CUSTOM_ID_PATTERN.match(custom_id))
+    def is_invalid_short(short):
+        return (short == OCCUPIED_SHORT
+                or len(short) > MAX_LEN_SHORT
+                or not SHORT_PATTERN.match(short))
 
     @staticmethod
-    def is_duplicate_custom_id(custom_id):
-        return URLMap.get(custom_id) is not None
-
-    @staticmethod
-    def get_unique_short_id():
+    def get_unique_short():
         for _ in range(MAX_GENERATE_ATTEMPTS):
-            short_id = ''.join(
-                random.choice(ascii_letters + digits)
-                for _ in range(app.config['MAX_LEN_AUTO'])
-            )
-            if not URLMap.get(short_id) and short_id != OCCUPIED_ID:
-                return short_id
+            short = ''.join(choices(ascii_letters + digits, k=MAX_LEN_AUTO))
+            if not URLMap.is_invalid_short(short) and not URLMap.get(short):
+                return short
+        raise ValueError(SHORT_GENERATION_ERROR)
 
     @staticmethod
-    def create(original, short):
+    def create(original, short=None):
+        if short:
+            if URLMap.is_invalid_short(short):
+                raise ValueError(INVALID_SHORT)
+            if URLMap.get(short) is not None:
+                raise ValueError(SHORT_TAKEN)
+        else:
+            short = URLMap.get_unique_short()
+
         url_map = URLMap(original=original, short=short)
         db.session.add(url_map)
-        db.session.commit()
         return url_map
 
     def get_short_link(self):
         return url_for(
             REDIRECT_VIEW,
-            short_id=self.short,
+            short=self.short,
             _external=True
         )
