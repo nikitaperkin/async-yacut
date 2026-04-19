@@ -1,34 +1,17 @@
-import random
-import string
-
 from flask import flash, redirect, render_template, url_for
 
-from . import app, db
+from . import app
+from .constants import MSG_SHORT_ID_TAKEN, REDIRECT_VIEW
 from .forms import URLMapForm, UploadFileForm
 from .models import URLMap
 from .yadisk import async_upload_files_to_yadisk
 
 
-OCCUPIED_ID = 'files'
-SHORT_ID_LENGTH = 6
-
-
-def get_unique_short_id():
-    while True:
-        short_id = ''.join(
-            random.choice(
-                string.ascii_letters + string.digits
-            ) for _ in range(SHORT_ID_LENGTH)
-        )
-        if short_id != OCCUPIED_ID and not URLMap.query.filter_by(
-            short=short_id
-        ).first():
-            return short_id
-
-
-@app.route('/<string:short_id>')
+@app.route('/<string:short_id>', endpoint=REDIRECT_VIEW)
 def redirect_view(short_id):
-    url_map = URLMap.query.filter_by(short=short_id).first_or_404()
+    url_map = URLMap.get(short_id)
+    if url_map is None:
+        return render_template('404.html'), 404
     return redirect(url_map.original)
 
 
@@ -42,20 +25,25 @@ def add_short_link_view():
     custom_id = form.custom_id.data
 
     if custom_id:
-        if custom_id == OCCUPIED_ID or URLMap.query.filter_by(
-            short=custom_id
-        ).first():
-            flash('Предложенный вариант короткой ссылки уже существует.')
+        if URLMap.is_invalid_custom_id(custom_id):
+            flash(MSG_SHORT_ID_TAKEN)
+            return render_template('short_link.html', form=form)
+        if URLMap.is_duplicate_custom_id(custom_id):
+            flash(MSG_SHORT_ID_TAKEN)
             return render_template('short_link.html', form=form)
     else:
-        custom_id = get_unique_short_id()
+        custom_id = URLMap.get_unique_short_id()
 
-    url_map = URLMap(original=form.original_link.data, short=custom_id)
-    db.session.add(url_map)
-    db.session.commit()
+    url_map = URLMap.create(
+        original=form.original_link.data,
+        short=custom_id
+    )
 
-    short_link = url_for('redirect_view', short_id=custom_id, _external=True)
-    return render_template('short_link.html', form=form, short_link=short_link)
+    return render_template(
+        'short_link.html',
+        form=form,
+        short_link=url_map.get_short_link()
+    )
 
 
 @app.route('/files', methods=['GET', 'POST'])
@@ -66,24 +54,31 @@ async def add_files_link_view():
         return render_template('file_short_link.html', form=form)
 
     files = form.files.data
-    file_urls = await async_upload_files_to_yadisk(files)
-    short_links = []
+    try:
+        file_urls = await async_upload_files_to_yadisk(files)
+    except Exception:
+        flash('Не удалось загрузить файлы. Попробуйте ещё раз.')
+        return render_template('file_short_link.html', form=form)
+
+    short_ids = []
 
     for file_url in file_urls:
-        custom_id = get_unique_short_id()
-        url_map = URLMap(original=file_url, short=custom_id)
-        db.session.add(url_map)
-        short_links.append(
-            url_for('redirect_view', short_id=custom_id, _external=True)
-        )
+        short_id = URLMap.get_unique_short_id()
+        URLMap.create(original=file_url, short=short_id)
+        short_ids.append(short_id)
 
-    db.session.commit()
-    file_links = [
-        {'name': f.filename, 'link': link}
-        for f, link in zip(files, short_links)
-    ]
     return render_template(
         'file_short_link.html',
         form=form,
-        file_links=file_links,
+        file_links=[
+            {
+                'name': uploaded_file.filename,
+                'link': url_for(
+                    REDIRECT_VIEW,
+                    short_id=short_id,
+                    _external=True
+                )
+            }
+            for uploaded_file, short_id in zip(files, short_ids)
+        ]
     )

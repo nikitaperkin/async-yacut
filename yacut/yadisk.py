@@ -1,6 +1,7 @@
-import aiohttp
 import asyncio
-import urllib
+import urllib.parse
+
+import aiohttp
 
 from . import app
 
@@ -11,23 +12,25 @@ AUTH_HEADERS = {
 API_HOST = 'https://cloud-api.yandex.net/'
 API_VERSION = 'v1'
 
-UPLOAD_LINK = f'{API_HOST}{API_VERSION}/disk/resources/upload'
+UPLOAD_LINK = (
+    f'{app.config["YADISK_API_HOST"]}'
+    f'{app.config["YADISK_API_VERSION"]}/disk/resources/upload'
+)
 
-DOWNLOAD_LINK_URL = f'{API_HOST}{API_VERSION}/disk/resources/download'
+DOWNLOAD_LINK_URL = (
+    f'{app.config["YADISK_API_HOST"]}'
+    f'{app.config["YADISK_API_VERSION"]}/disk/resources/download'
+)
 
 
 async def async_upload_files_to_yadisk(files):
-    if files is not None:
-        tasks = []
-        async with aiohttp.ClientSession() as session:
-            for file in files:
-                tasks.append(
-                    asyncio.ensure_future(
-                        upload_file_and_get_url(session, file)
-                    )
-                )
-            urls = await asyncio.gather(*tasks)
-        return urls
+    tasks = []
+    async with aiohttp.ClientSession() as session:
+        tasks = [
+            asyncio.ensure_future(upload_file_and_get_url(session, file))
+            for file in files
+        ]
+        return await asyncio.gather(*tasks)
 
 
 async def upload_file_and_get_url(session, file):
@@ -56,6 +59,5 @@ async def upload_file_and_get_url(session, file):
         params={'path': location}
     ) as response:
         data = await response.json()
-        download_url = data['href']
 
-    return download_url
+    return data['href']
