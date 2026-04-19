@@ -11,9 +11,14 @@ from .constants import (
 from yacut import db
 
 INVALID_SHORT = 'Указано недопустимое имя для короткой ссылки'
-INVALID_URL = 'Указан слишком длинный URL'
+INVALID_URL = (
+    'Длина URL превышает допустимое значение ({}).'
+).format(MAX_LEN_ORIGINAL)
 SHORT_TAKEN = 'Предложенный вариант короткой ссылки уже существует.'
-SHORT_GENERATION_ERROR = 'Не удалось сгенерировать уникальную короткую ссылку.'
+SHORT_GENERATION_ERROR = (
+    'Не удалось сгенерировать уникальную короткую ссылку '
+    '(лимит попыток: {}).'
+).format(MAX_GENERATE_ATTEMPTS)
 
 
 class URLMap(db.Model):
@@ -35,15 +40,20 @@ class URLMap(db.Model):
         raise RuntimeError(SHORT_GENERATION_ERROR)
 
     @staticmethod
-    def create(original, short=None, commit=True):
+    def create(
+        original, short=None, commit=True,
+        validate_url=True, validate_short=True
+    ):
+        if validate_url and len(original) > MAX_LEN_ORIGINAL:
+            raise ValueError(INVALID_URL)
         if short:
-            if len(short) > MAX_LEN_SHORT or not SHORT_PATTERN.match(short):
+            if validate_short and (
+                len(short) > MAX_LEN_SHORT or not SHORT_PATTERN.match(short)
+            ):
                 raise ValueError(INVALID_SHORT)
             if short == OCCUPIED_SHORT or URLMap.get(short) is not None:
                 raise ValueError(SHORT_TAKEN)
         else:
-            if len(original) > MAX_LEN_ORIGINAL:
-                raise ValueError(INVALID_URL)
             short = URLMap.get_unique_short()
 
         url_map = URLMap(original=original, short=short)

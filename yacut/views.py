@@ -9,7 +9,7 @@ from .models import URLMap
 from .yadisk import async_upload_files_to_yadisk
 
 SHORT_TAKEN = 'Предложенный вариант короткой ссылки уже существует.'
-UPLOAD_ERROR = 'Не удалось загрузить файлы. Попробуйте ещё раз.'
+UPLOAD_ERROR = 'Не удалось загрузить файлы: {}.'
 
 
 @app.route('/<string:short>', endpoint=REDIRECT_VIEW)
@@ -30,8 +30,10 @@ def add_short_link_view():
         url_map = URLMap.create(
             original=form.original_link.data,
             short=form.custom_id.data,
+            validate_url=False,
+            validate_short=False,
         )
-    except ValueError as e:
+    except (ValueError, RuntimeError) as e:
         flash(str(e))
         return render_template('short_link.html', form=form)
 
@@ -54,25 +56,26 @@ async def add_files_link_view():
     try:
         file_urls = await async_upload_files_to_yadisk(files)
     except Exception as e:
-        flash('{} {}'.format(UPLOAD_ERROR, e))
+        flash(UPLOAD_ERROR.format(e))
         return render_template('file_short_link.html', form=form)
 
-    return render_template(
-        'file_short_link.html',
-        form=form,
-        file_links=[
-            {
-                'name': uploaded_file.filename,
-                'link': url_map.get_short_link()
-            }
-            for uploaded_file, url_map in zip(
-                files,
-                [
-                    URLMap.create(
-                        original=file_url, commit=(i == len(file_urls) - 1)
-                    )
-                    for i, file_url in enumerate(file_urls)
-                ]
-            )
-        ]
-    )
+    try:
+        return render_template(
+            'file_short_link.html',
+            form=form,
+            file_links=[
+                {
+                    'name': uploaded_file.filename,
+                    'link': URLMap.create(
+                        original=file_url,
+                        commit=(i == len(file_urls) - 1)
+                    ).get_short_link()
+                }
+                for i, (uploaded_file, file_url) in enumerate(
+                    zip(files, file_urls)
+                )
+            ]
+        )
+    except (ValueError, RuntimeError) as e:
+        flash(UPLOAD_ERROR.format(e))
+        return render_template('file_short_link.html', form=form)

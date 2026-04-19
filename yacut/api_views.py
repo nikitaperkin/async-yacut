@@ -5,11 +5,10 @@ from flask import jsonify, redirect, request, url_for
 from . import app
 from .error_handlers import InvalidAPIUsage
 from .models import URLMap
-from yacut import db
 
 NO_REQUEST_BODY = 'Отсутствует тело запроса'
-URL_REQUIRED = '"url" является обязательным полем!'
 NOT_FOUND = 'Указанный id не найден'
+URL_REQUIRED = '"url" является обязательным полем!'
 
 
 @app.route('/api/id/', methods=['POST'])
@@ -26,8 +25,7 @@ def add_short_link():
             original=data['url'],
             short=data.get('custom_id'),
         )
-        db.session.commit()
-    except ValueError as e:
+    except (ValueError, RuntimeError) as e:
         raise InvalidAPIUsage(str(e))
 
     return jsonify(
@@ -52,6 +50,6 @@ def swagger_ui():
     ))
 
 
-@app.route('/api/docs/openapi.yml')
+@app.route('/api/docs/openapi.yml', endpoint='openapi_spec')
 def openapi_spec():
     return app.send_static_file('openapi.yml')
