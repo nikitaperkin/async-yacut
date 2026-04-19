@@ -1,16 +1,17 @@
 from datetime import datetime
 from random import choices
-from string import ascii_letters, digits
 
 from flask import url_for
 
 from .constants import (
     MAX_GENERATE_ATTEMPTS, MAX_LEN_AUTO, MAX_LEN_ORIGINAL,
-    MAX_LEN_SHORT, OCCUPIED_SHORT, REDIRECT_VIEW, SHORT_PATTERN
+    MAX_LEN_SHORT, OCCUPIED_SHORT, REDIRECT_VIEW,
+    SHORT_ALLOWED_CHARS, SHORT_PATTERN,
 )
 from yacut import db
 
 INVALID_SHORT = 'Указано недопустимое имя для короткой ссылки'
+INVALID_URL = 'Указан слишком длинный URL'
 SHORT_TAKEN = 'Предложенный вариант короткой ссылки уже существует.'
 SHORT_GENERATION_ERROR = 'Не удалось сгенерировать уникальную короткую ссылку.'
 
@@ -26,31 +27,29 @@ class URLMap(db.Model):
         return URLMap.query.filter_by(short=short).first()
 
     @staticmethod
-    def is_invalid_short(short):
-        return (short == OCCUPIED_SHORT
-                or len(short) > MAX_LEN_SHORT
-                or not SHORT_PATTERN.match(short))
-
-    @staticmethod
     def get_unique_short():
         for _ in range(MAX_GENERATE_ATTEMPTS):
-            short = ''.join(choices(ascii_letters + digits, k=MAX_LEN_AUTO))
-            if not URLMap.is_invalid_short(short) and not URLMap.get(short):
+            short = ''.join(choices(SHORT_ALLOWED_CHARS, k=MAX_LEN_AUTO))
+            if short != OCCUPIED_SHORT and not URLMap.get(short):
                 return short
-        raise ValueError(SHORT_GENERATION_ERROR)
+        raise RuntimeError(SHORT_GENERATION_ERROR)
 
     @staticmethod
-    def create(original, short=None):
+    def create(original, short=None, commit=True):
         if short:
-            if URLMap.is_invalid_short(short):
+            if len(short) > MAX_LEN_SHORT or not SHORT_PATTERN.match(short):
                 raise ValueError(INVALID_SHORT)
-            if URLMap.get(short) is not None:
+            if short == OCCUPIED_SHORT or URLMap.get(short) is not None:
                 raise ValueError(SHORT_TAKEN)
         else:
+            if len(original) > MAX_LEN_ORIGINAL:
+                raise ValueError(INVALID_URL)
             short = URLMap.get_unique_short()
 
         url_map = URLMap(original=original, short=short)
         db.session.add(url_map)
+        if commit:
+            db.session.commit()
         return url_map
 
     def get_short_link(self):

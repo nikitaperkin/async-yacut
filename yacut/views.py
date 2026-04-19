@@ -6,7 +6,6 @@ from . import app
 from .constants import REDIRECT_VIEW
 from .forms import URLMapForm, UploadFileForm
 from .models import URLMap
-from yacut import db
 from .yadisk import async_upload_files_to_yadisk
 
 SHORT_TAKEN = 'Предложенный вариант короткой ссылки уже существует.'
@@ -32,9 +31,8 @@ def add_short_link_view():
             original=form.original_link.data,
             short=form.custom_id.data,
         )
-        db.session.commit()
-    except ValueError:
-        flash(SHORT_TAKEN)
+    except ValueError as e:
+        flash(str(e))
         return render_template('short_link.html', form=form)
 
     return render_template(
@@ -55,17 +53,8 @@ async def add_files_link_view():
 
     try:
         file_urls = await async_upload_files_to_yadisk(files)
-    except Exception:
-        flash(UPLOAD_ERROR)
-        return render_template('file_short_link.html', form=form)
-
-    try:
-        url_maps = [
-            URLMap.create(original=file_url) for file_url in file_urls
-        ]
-        db.session.commit()
-    except ValueError as e:
-        flash(f'{UPLOAD_ERROR} {e}')
+    except Exception as e:
+        flash('{} {}'.format(UPLOAD_ERROR, e))
         return render_template('file_short_link.html', form=form)
 
     return render_template(
@@ -76,6 +65,14 @@ async def add_files_link_view():
                 'name': uploaded_file.filename,
                 'link': url_map.get_short_link()
             }
-            for uploaded_file, url_map in zip(files, url_maps)
+            for uploaded_file, url_map in zip(
+                files,
+                [
+                    URLMap.create(
+                        original=file_url, commit=(i == len(file_urls) - 1)
+                    )
+                    for i, file_url in enumerate(file_urls)
+                ]
+            )
         ]
     )

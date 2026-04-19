@@ -1,6 +1,6 @@
 from http import HTTPStatus
 
-from flask import jsonify, request
+from flask import jsonify, redirect, request, url_for
 
 from . import app
 from .error_handlers import InvalidAPIUsage
@@ -43,3 +43,15 @@ def get_short_link(short):
     if (url_map := URLMap.get(short)) is None:
         raise InvalidAPIUsage(NOT_FOUND, HTTPStatus.NOT_FOUND)
     return jsonify({'url': url_map.original}), HTTPStatus.OK
+
+
+@app.route('/api/docs/')
+def swagger_ui():
+    return redirect('https://editor.swagger.io/?url={}'.format(
+        url_for('openapi_spec', _external=True)
+    ))
+
+
+@app.route('/api/docs/')
+def openapi_spec():
+    return app.send_static_file('openapi.yml')

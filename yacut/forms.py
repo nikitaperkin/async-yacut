@@ -6,7 +6,7 @@ from wtforms.validators import DataRequired, Length, Optional, Regexp
 from .constants import MAX_LEN_ORIGINAL, MAX_LEN_SHORT, SHORT_PATTERN
 
 ORIGINAL_LINK_LABEL = 'Длинная ссылка'
-CUSTOM_SHORT_LABEL = 'Ваш вариант короткой ссылки'
+SHORT_LABEL = 'Ваш вариант короткой ссылки'
 FILES_LABEL = 'Выберите файлы'
 
 REQUIRED_FIELD = 'Обязательное поле'
@@ -26,7 +26,7 @@ class URLMapForm(FlaskForm):
         ]
     )
     custom_id = StringField(
-        CUSTOM_SHORT_LABEL,
+        SHORT_LABEL,
         validators=[
             Optional(),
             Length(max=MAX_LEN_SHORT),
