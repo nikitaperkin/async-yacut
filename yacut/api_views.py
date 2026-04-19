@@ -52,6 +52,6 @@ def swagger_ui():
     ))
 
 
-@app.route('/api/docs/')
+@app.route('/api/docs/openapi.yml')
 def openapi_spec():
     return app.send_static_file('openapi.yml')
