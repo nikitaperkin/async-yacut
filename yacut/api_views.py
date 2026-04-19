@@ -28,19 +28,17 @@ def add_short_link():
     except (ValueError, RuntimeError) as e:
         raise InvalidAPIUsage(str(e))
 
-    return jsonify(
-        {
-            'url': url_map.original,
-            'short_link': url_map.get_short_link()
-        }
-    ), HTTPStatus.CREATED
+    return jsonify(dict(
+        url=url_map.original,
+        short_link=url_map.get_short_link(),
+    )), HTTPStatus.CREATED
 
 
 @app.route('/api/id/<string:short>/')
 def get_short_link(short):
     if (url_map := URLMap.get(short)) is None:
         raise InvalidAPIUsage(NOT_FOUND, HTTPStatus.NOT_FOUND)
-    return jsonify({'url': url_map.original}), HTTPStatus.OK
+    return jsonify(dict(url=url_map.original)), HTTPStatus.OK
 
 
 @app.route('/api/docs/')
