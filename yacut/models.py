@@ -14,11 +14,10 @@ INVALID_SHORT = 'Указано недопустимое имя для коро�
 INVALID_URL = (
     'Длина URL превышает допустимое значение ({}).'
 ).format(MAX_LEN_ORIGINAL)
+INVALID_URL = f'Длина URL превышает допустимое значение ({MAX_LEN_ORIGINAL}).'
 SHORT_TAKEN = 'Предложенный вариант короткой ссылки уже существует.'
-SHORT_GENERATION_ERROR = (
-    'Не удалось сгенерировать уникальную короткую ссылку '
-    '(лимит попыток: {}).'
-).format(MAX_GENERATE_ATTEMPTS)
+SHORT_GENERATION_ERROR = (f'Не удалось сгенерировать уникальную короткую '
+                          f'ссылку (лимит попыток: {MAX_GENERATE_ATTEMPTS}).')
 
 
 class URLMap(db.Model):
@@ -53,10 +52,10 @@ class URLMap(db.Model):
                 raise ValueError(INVALID_SHORT)
             if short == OCCUPIED_SHORT or URLMap.get(short) is not None:
                 raise ValueError(SHORT_TAKEN)
-        else:
-            short = URLMap.get_unique_short()
 
-        url_map = URLMap(original=original, short=short)
+        url_map = URLMap(
+            original=original, short=short or URLMap.get_unique_short()
+        )
         db.session.add(url_map)
         if commit:
             db.session.commit()
